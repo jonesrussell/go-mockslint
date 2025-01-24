@@ -7,7 +7,7 @@ tasks:
   build:
     desc: Build the go-fxlint binary
     cmds:
-      - go build -o bin/go-fxlint ./cmd/go-fxlint
+      - go build ./cmd/go-fxlint
 
   install:
     desc: Install go-fxlint globally
@@ -28,7 +28,7 @@ tasks:
     desc: Run go vet with our custom analyzer
     deps: [build]
     cmds:
-      - go vet -vettool=bin/go-fxlint ./...
+      - go vet -vettool=./go-fxlint ./...
 
   tidy:
     desc: Tidy and verify dependencies
@@ -43,5 +43,5 @@ tasks:
   clean:
     desc: Clean build artifacts
     cmds:
-      - rm -rf bin/
+      - rm -f go-fxlint
       - go clean -cache -testcache 

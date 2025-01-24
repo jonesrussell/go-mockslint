@@ -6,7 +6,6 @@ linters:
     - bidichk
     - containedctx
     - contextcheck
-#    - copyloopvar
     - cyclop
     - dogsled
     - dupl
@@ -42,7 +41,6 @@ linters:
     - inamedparam
     - ineffassign
     - interfacebloat
-#    - intrange
     - ireturn
     - loggercheck
     - maintidx
@@ -60,6 +58,7 @@ linters:
     - predeclared
     - reassign
     - revive
+    - shadow
     - staticcheck
     - stylecheck
     - tagalign
@@ -84,21 +83,16 @@ linters-settings:
     checks: ['*', '-ST1000']
   cyclop:
     max-complexity: 15
-  govet:
-    check-shadowing: true
-  gofmt:
-    simplify: true
 
 run:
-  deadline: 5m
   tests: true
-  skip-dirs:
-    - testdata
 
 issues:
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+  exclude-dirs:
+    - testdata
   exclude-rules:
     - linters:
         - revive

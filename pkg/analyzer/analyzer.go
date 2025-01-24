@@ -18,8 +18,8 @@ const (
 
 // Config holds the analyzer configuration
 type Config struct {
-	ModulePaths  []string `yaml:"module-paths"`
-	StrictNaming bool     `yaml:"strict-naming"`
+	ModulePaths  []string `yaml:"modulePaths"`
+	StrictNaming bool     `yaml:"strictNaming"`
 }
 
 // stringSliceFlag implements the flag.Value interface.
@@ -44,17 +44,24 @@ var Analyzer = &analysis.Analyzer{
 	},
 }
 
-func init() {
-	var modulePaths stringSliceFlag = []string{
+// config holds the analyzer configuration.
+var config Config
+
+// setupFlags initializes the analyzer flags.
+func setupFlags() {
+	modulePaths := stringSliceFlag{
 		"internal/*/module.go",
 		"pkg/*/module.go",
 	}
+
 	Analyzer.Flags.Var(&modulePaths, "module-paths", "Allowed module file paths (glob patterns)")
 	Analyzer.Flags.BoolVar(&config.StrictNaming, "strict-naming", true, "Enforce strict module naming")
 	config.ModulePaths = modulePaths
 }
 
-var config Config
+func init() {
+	setupFlags()
+}
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspector := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
@@ -72,8 +79,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if !ok {
 			return
 		}
-		x, ok := sel.X.(*ast.Ident)
-		if !ok || x.Name != "fx" || sel.Sel.Name != "Module" {
+
+		ident, isIdent := sel.X.(*ast.Ident)
+		if !isIdent || ident.Name != "fx" || sel.Sel.Name != "Module" {
 			return
 		}
 
@@ -87,9 +95,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// Check if file is module.go
 		if filename != moduleFileName {
 			// Only report on init functions
-			if fn, ok := findParentInit(call); ok {
+			if fn, isInit := findParentInit(call); isInit {
 				pass.Reportf(fn.Pos(), "fx.Module can only be used in module.go files")
 			}
+
 			return
 		}
 
@@ -98,6 +107,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if part == internalDir {
 				if i == len(parts)-1 || parts[i+1] == moduleDir {
 					pass.Reportf(call.Pos(), "module.go files should not be directly in internal/ or internal/module/ directories")
+
 					return
 				}
 			}
@@ -107,8 +117,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if len(call.Args) == 0 {
 			return
 		}
-		lit, ok := call.Args[0].(*ast.BasicLit)
-		if !ok {
+
+		lit, isLit := call.Args[0].(*ast.BasicLit)
+		if !isLit {
 			return
 		}
 
@@ -120,6 +131,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			pkgName := file.Name.Name
 			if moduleName != pkgName {
 				pass.Reportf(lit.Pos(), "module name %q should match package name %q", moduleName, pkgName)
+
 				return
 			}
 		}
@@ -139,17 +151,22 @@ func findEnclosingFile(pass *analysis.Pass, node ast.Node) *ast.File {
 			return file
 		}
 	}
+
 	return nil
 }
 
 func findParentInit(node ast.Node) (*ast.FuncDecl, bool) {
 	var initFunc *ast.FuncDecl
+
 	ast.Inspect(node, func(n ast.Node) bool {
 		if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.Name == "init" {
 			initFunc = fn
+
 			return false
 		}
+
 		return true
 	})
+
 	return initFunc, initFunc != nil
 }
