@@ -16,6 +16,32 @@ const (
 	moduleDir      = "module"
 )
 
+// Config holds the analyzer configuration
+type Config struct {
+	ModulePaths  []string `yaml:"module-paths"`
+	StrictNaming bool     `yaml:"strict-naming"`
+}
+
+// stringSliceFlag implements the flag.Value interface.
+type stringSliceFlag []string
+
+func (s *stringSliceFlag) String() string {
+	return strings.Join(*s, ",")
+}
+
+func (s *stringSliceFlag) Set(value string) error {
+	*s = strings.Split(value, ",")
+	return nil
+}
+
+var (
+	defaultModulePaths = []string{
+		"internal/*/module.go",
+		"pkg/*/module.go",
+	}
+)
+
+// Analyzer is the fxlint analyzer.
 var Analyzer = &analysis.Analyzer{
 	Name: "fxlint",
 	Doc:  "Enforces domain-driven module organization patterns in Go projects using uber/fx",
@@ -25,7 +51,20 @@ var Analyzer = &analysis.Analyzer{
 	},
 }
 
+func init() {
+	var modulePaths stringSliceFlag
+	Analyzer.Flags.Var(&modulePaths, "module-paths", "Allowed module file paths (glob patterns)")
+	Analyzer.Flags.BoolVar(&config.StrictNaming, "strict-naming", true, "Enforce strict module naming")
+	config.ModulePaths = modulePaths
+}
+
+var config Config
+
 func run(pass *analysis.Pass) (interface{}, error) {
+	if len(config.ModulePaths) == 0 {
+		config.ModulePaths = defaultModulePaths
+	}
+
 	inspector := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -45,6 +84,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
+func isAllowedModulePath(filePath string) bool {
+	for _, pattern := range config.ModulePaths {
+		matched, _ := filepath.Match(pattern, filePath)
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
 func checkModuleFile(pass *analysis.Pass, file *ast.File) {
 	filename := filepath.Base(pass.Fset.File(file.Pos()).Name())
 	if filename != moduleFileName {
@@ -62,8 +111,14 @@ func checkModuleFile(pass *analysis.Pass, file *ast.File) {
 		}
 	}
 
-	// Check if module name matches package name
-	if file.Name != nil {
+	// Check if module location is allowed
+	relPath, err := filepath.Rel(pass.Fset.File(file.Pos()).Name(), ".")
+	if err == nil && !isAllowedModulePath(relPath) {
+		pass.Reportf(file.Pos(), "module.go file location not allowed by configuration")
+	}
+
+	// Check if module name matches package name when strict naming is enabled
+	if config.StrictNaming && file.Name != nil {
 		pkgName := file.Name.Name
 		checkModuleNameMatchesPackage(pass, file, pkgName)
 	}
@@ -78,8 +133,8 @@ func checkModuleCall(pass *analysis.Pass, call *ast.CallExpr) {
 				pass.Reportf(call.Pos(), "fx.Module can only be used in module.go files")
 			}
 
-			// Check module name argument
-			if len(call.Args) > 0 {
+			// Check module name argument when strict naming is enabled
+			if config.StrictNaming && len(call.Args) > 0 {
 				if lit, ok := call.Args[0].(*ast.BasicLit); ok {
 					moduleName := strings.Trim(lit.Value, `"`)
 					dir := filepath.Base(filepath.Dir(pass.Fset.File(call.Pos()).Name()))
