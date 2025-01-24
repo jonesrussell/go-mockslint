@@ -7,8 +7,7 @@ import (
 )
 
 // want "module.go files should not be directly in internal/ or internal/module/ directories"
-// want "module name \"auth\" should match directory name \"module\""
-var Module = fx.Module("auth",
+var Module = fx.Module("auth", // want "module name \"auth\" should match directory name \"module\""
 	fx.Provide(
 		auth.NewAuthenticator,
 	),
