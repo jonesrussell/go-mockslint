@@ -1,0 +1,48 @@
+name: Tests
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CGO_ENABLED: 0
+  GO_VERSION: "1.23"
+
+jobs:
+  test:
+    name: Go
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get dependencies
+        run: |
+          go mod download
+          go mod tidy
+
+      - name: Test
+        run: task test
+
+      - name: Build
+        run: task build
+
+      - name: Verify binary
+        run: |
+          ./bin/go-fxlint -h 

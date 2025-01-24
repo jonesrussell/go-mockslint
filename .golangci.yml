@@ -77,12 +77,23 @@ linters:
     - whitespace
     - wrapcheck
     - wsl
+    - typecheck
 
 linters-settings:
   stylecheck:
     checks: ['*', '-ST1000']
   cyclop:
     max-complexity: 15
+  govet:
+    check-shadowing: true
+  gofmt:
+    simplify: true
+
+run:
+  deadline: 5m
+  tests: true
+  skip-dirs:
+    - testdata
 
 issues:
   exclude-use-default: false

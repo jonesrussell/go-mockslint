@@ -1,6 +1,9 @@
 version: '3'
 
 tasks:
+  default:
+    deps: [lint, test, vet]
+
   build:
     desc: Build the go-fxlint binary
     cmds:
@@ -12,14 +15,20 @@ tasks:
       - go install ./cmd/go-fxlint
 
   test:
-    desc: Run tests
+    desc: Run tests with coverage
     cmds:
-      - go test -v ./...
+      - go test -v -cover ./...
 
   lint:
     desc: Run golangci-lint
     cmds:
       - golangci-lint run
+
+  vet:
+    desc: Run go vet with our custom analyzer
+    deps: [build]
+    cmds:
+      - go vet -vettool=bin/go-fxlint ./...
 
   tidy:
     desc: Tidy and verify dependencies
@@ -29,11 +38,7 @@ tasks:
 
   ci:
     desc: Run all CI tasks
-    cmds:
-      - task: tidy
-      - task: lint
-      - task: test
-      - task: build
+    deps: [tidy, lint, test, vet]
 
   clean:
     desc: Clean build artifacts
