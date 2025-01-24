@@ -34,13 +34,6 @@ func (s *stringSliceFlag) Set(value string) error {
 	return nil
 }
 
-var (
-	defaultModulePaths = []string{
-		"internal/*/module.go",
-		"pkg/*/module.go",
-	}
-)
-
 // Analyzer is the fxlint analyzer.
 var Analyzer = &analysis.Analyzer{
 	Name: "fxlint",
@@ -52,7 +45,10 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func init() {
-	var modulePaths stringSliceFlag
+	var modulePaths stringSliceFlag = []string{
+		"internal/*/module.go",
+		"pkg/*/module.go",
+	}
 	Analyzer.Flags.Var(&modulePaths, "module-paths", "Allowed module file paths (glob patterns)")
 	Analyzer.Flags.BoolVar(&config.StrictNaming, "strict-naming", true, "Enforce strict module naming")
 	config.ModulePaths = modulePaths
