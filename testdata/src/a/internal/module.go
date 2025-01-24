@@ -7,3 +7,9 @@ var Module = fx.Module("internal", // want "module.go files should not be direct
 		NewInternalService,
 	),
 )
+
+type InternalService struct{}
+
+func NewInternalService() *InternalService {
+	return &InternalService{}
+}
