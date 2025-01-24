@@ -43,11 +43,11 @@ linters:
 linters-settings:
   fxlint:
     # Optional: Configure allowed module locations
-    module-paths:
+    modulePaths:
       - internal/*/module.go
       - pkg/*/module.go
     # Optional: Enforce strict module naming
-    strict-naming: true
+    strictNaming: true
 ```
 
 Then run:
@@ -60,8 +60,8 @@ golangci-lint run
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `module-paths` | Glob patterns for allowed module file locations | `["internal/*/module.go", "pkg/*/module.go"]` |
-| `strict-naming` | Enforce that module names match their package names | `true` |
+| `modulePaths` | Glob patterns for allowed module file locations | `["internal/*/module.go", "pkg/*/module.go"]` |
+| `strictNaming` | Enforce that module names match their package names | `true` |
 
 ## Examples
 
@@ -110,6 +110,36 @@ func init() {
 }
 ```
 
+## Development
+
+### Prerequisites
+
+- Go 1.23 or later
+- [Task](https://taskfile.dev) for running development commands
+- [golangci-lint](https://golangci-lint.run/) for linting
+
+### Commands
+
+```bash
+# Build the binary
+task build
+
+# Run tests
+task test
+
+# Run linter
+task lint
+
+# Run all CI checks
+task ci
+
+# Install globally
+task install
+
+# Clean build artifacts
+task clean
+```
+
 ## Integration
 
 ### VSCode
@@ -128,19 +158,26 @@ Add to your `.vscode/settings.json`:
 ### GitHub Actions
 
 ```yaml
-name: Lint
-on: [push, pull_request]
+name: Tests
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - uses: golangci/golangci-lint-action@v4
+      - uses: arduino/setup-task@v2
         with:
-          version: latest
+          version: 3.x
+      - run: task ci
 ```
 
 ## Contributing
