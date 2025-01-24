@@ -58,7 +58,6 @@ linters:
     - predeclared
     - reassign
     - revive
-    - shadow
     - staticcheck
     - stylecheck
     - tagalign
@@ -83,6 +82,9 @@ linters-settings:
     checks: ['*', '-ST1000']
   cyclop:
     max-complexity: 15
+  govet:
+    enable:
+      - shadow
 
 run:
   tests: true
