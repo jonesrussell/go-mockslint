@@ -106,7 +106,9 @@ func checkModuleFile(pass *analysis.Pass, file *ast.File) {
 	for i, part := range parts {
 		if part == internalDir {
 			if i == len(parts)-1 || parts[i+1] == moduleDir {
-				pass.Reportf(file.Pos(), "module.go files should not be directly in internal/ or internal/module/ directories")
+				// Report at the package declaration
+				pass.Reportf(file.Package, "module.go files should not be directly in internal/ or internal/module/ directories")
+				return
 			}
 		}
 	}
@@ -114,7 +116,7 @@ func checkModuleFile(pass *analysis.Pass, file *ast.File) {
 	// Check if module location is allowed
 	relPath, err := filepath.Rel(pass.Fset.File(file.Pos()).Name(), ".")
 	if err == nil && !isAllowedModulePath(relPath) {
-		pass.Reportf(file.Pos(), "module.go file location not allowed by configuration")
+		pass.Reportf(file.Package, "module.go file location not allowed by configuration")
 	}
 
 	// Check if module name matches package name when strict naming is enabled
@@ -130,6 +132,7 @@ func checkModuleCall(pass *analysis.Pass, call *ast.CallExpr) {
 		if x, ok := sel.X.(*ast.Ident); ok && x.Name == "fx" && sel.Sel.Name == "Module" {
 			filename := filepath.Base(pass.Fset.File(call.Pos()).Name())
 			if filename != moduleFileName {
+				// Report at the fx.Module call
 				pass.Reportf(call.Pos(), "fx.Module can only be used in module.go files")
 			}
 
@@ -156,6 +159,7 @@ func checkModuleNameMatchesPackage(pass *analysis.Pass, file *ast.File, pkgName 
 						if lit, ok := call.Args[0].(*ast.BasicLit); ok {
 							moduleName := strings.Trim(lit.Value, `"`)
 							if moduleName != pkgName {
+								// Report at the module name argument
 								pass.Reportf(lit.Pos(), "module name %q should match package name %q", moduleName, pkgName)
 							}
 						}
