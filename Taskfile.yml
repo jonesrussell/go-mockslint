@@ -1,0 +1,42 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the go-fxlint binary
+    cmds:
+      - go build -o bin/go-fxlint ./cmd/go-fxlint
+
+  install:
+    desc: Install go-fxlint globally
+    cmds:
+      - go install ./cmd/go-fxlint
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v ./...
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run
+
+  tidy:
+    desc: Tidy and verify dependencies
+    cmds:
+      - go mod tidy
+      - go mod verify
+
+  ci:
+    desc: Run all CI tasks
+    cmds:
+      - task: tidy
+      - task: lint
+      - task: test
+      - task: build
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf bin/
+      - go clean -cache -testcache 
