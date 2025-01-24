@@ -2,8 +2,7 @@ package internal
 
 import "go.uber.org/fx"
 
-// want "module.go files should not be directly in internal/ or internal/module/ directories"
-var Module = fx.Module("internal",
+var Module = fx.Module("internal", // want "module.go files should not be directly in internal/ or internal/module/ directories"
 	fx.Provide(
 		NewInternalService,
 	),

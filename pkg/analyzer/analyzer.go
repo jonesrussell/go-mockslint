@@ -61,115 +61,89 @@ func init() {
 var config Config
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	if len(config.ModulePaths) == 0 {
-		config.ModulePaths = defaultModulePaths
-	}
-
 	inspector := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
+	// We only care about fx.Module calls
 	nodeFilter := []ast.Node{
 		(*ast.CallExpr)(nil),
-		(*ast.File)(nil),
 	}
 
 	inspector.Preorder(nodeFilter, func(n ast.Node) {
-		switch node := n.(type) {
-		case *ast.File:
-			checkModuleFile(pass, node)
-		case *ast.CallExpr:
-			checkModuleCall(pass, node)
+		call := n.(*ast.CallExpr)
+
+		// Check if it's an fx.Module call
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return
+		}
+		x, ok := sel.X.(*ast.Ident)
+		if !ok || x.Name != "fx" || sel.Sel.Name != "Module" {
+			return
+		}
+
+		// Get file info
+		pos := call.Pos()
+		file := pass.Fset.File(pos)
+		filename := filepath.Base(file.Name())
+		dir := filepath.Dir(file.Name())
+		parts := strings.Split(dir, string(filepath.Separator))
+
+		// Check if file is module.go
+		if filename != moduleFileName {
+			// Only report on init functions
+			if fn, ok := findParentInit(call); ok {
+				pass.Reportf(fn.Pos(), "fx.Module can only be used in module.go files")
+			}
+			return
+		}
+
+		// Check if file is in internal/ or internal/module/
+		for i, part := range parts {
+			if part == internalDir {
+				if i == len(parts)-1 || parts[i+1] == moduleDir {
+					pass.Reportf(call.Pos(), "module.go files should not be directly in internal/ or internal/module/ directories")
+					return
+				}
+			}
+		}
+
+		// Check module name matches
+		if len(call.Args) == 0 {
+			return
+		}
+		lit, ok := call.Args[0].(*ast.BasicLit)
+		if !ok {
+			return
+		}
+
+		moduleName := strings.Trim(lit.Value, `"`)
+		dirName := filepath.Base(dir)
+
+		// Check against package name
+		if file := findEnclosingFile(pass, call); file != nil && file.Name != nil {
+			pkgName := file.Name.Name
+			if moduleName != pkgName {
+				pass.Reportf(lit.Pos(), "module name %q should match package name %q", moduleName, pkgName)
+				return
+			}
+		}
+
+		// Check against directory name
+		if moduleName != dirName {
+			pass.Reportf(lit.Pos(), "module name %q should match directory name %q", moduleName, dirName)
 		}
 	})
 
 	return nil, nil
 }
 
-func isAllowedModulePath(filePath string) bool {
-	for _, pattern := range config.ModulePaths {
-		matched, _ := filepath.Match(pattern, filePath)
-		if matched {
-			return true
+func findEnclosingFile(pass *analysis.Pass, node ast.Node) *ast.File {
+	for _, file := range pass.Files {
+		if file.Pos() <= node.Pos() && node.Pos() <= file.End() {
+			return file
 		}
 	}
-	return false
-}
-
-func findModuleCall(file *ast.File) *ast.CallExpr {
-	var moduleCall *ast.CallExpr
-	ast.Inspect(file, func(n ast.Node) bool {
-		if call, ok := n.(*ast.CallExpr); ok {
-			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-				if x, ok := sel.X.(*ast.Ident); ok && x.Name == "fx" && sel.Sel.Name == "Module" {
-					moduleCall = call
-					return false
-				}
-			}
-		}
-		return true
-	})
-	return moduleCall
-}
-
-func checkModuleFile(pass *analysis.Pass, file *ast.File) {
-	filename := filepath.Base(pass.Fset.File(file.Pos()).Name())
-	if filename != moduleFileName {
-		return
-	}
-
-	// Check if file is directly in internal directory
-	dir := filepath.Dir(pass.Fset.File(file.Pos()).Name())
-	parts := strings.Split(dir, string(filepath.Separator))
-	for i, part := range parts {
-		if part == internalDir {
-			if i == len(parts)-1 || parts[i+1] == moduleDir {
-				// Find the fx.Module call to report at
-				if moduleCall := findModuleCall(file); moduleCall != nil {
-					pass.Reportf(moduleCall.Pos(), "module.go files should not be directly in internal/ or internal/module/ directories")
-				}
-				return
-			}
-		}
-	}
-
-	// Check if module location is allowed
-	relPath, err := filepath.Rel(pass.Fset.File(file.Pos()).Name(), ".")
-	if err == nil && !isAllowedModulePath(relPath) {
-		pass.Reportf(file.Pos(), "module.go file location not allowed by configuration")
-	}
-
-	// Check if module name matches package name when strict naming is enabled
-	if config.StrictNaming && file.Name != nil {
-		pkgName := file.Name.Name
-		checkModuleNameMatchesPackage(pass, file, pkgName)
-	}
-}
-
-func checkModuleCall(pass *analysis.Pass, call *ast.CallExpr) {
-	// Check for fx.Module calls
-	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-		if x, ok := sel.X.(*ast.Ident); ok && x.Name == "fx" && sel.Sel.Name == "Module" {
-			filename := filepath.Base(pass.Fset.File(call.Pos()).Name())
-			if filename != moduleFileName {
-				// Report at the init function or var declaration
-				if fn, ok := findParentInit(call); ok {
-					pass.Reportf(fn.Pos(), "fx.Module can only be used in module.go files")
-				} else {
-					pass.Reportf(call.Pos(), "fx.Module can only be used in module.go files")
-				}
-			}
-
-			// Check module name argument when strict naming is enabled
-			if config.StrictNaming && len(call.Args) > 0 {
-				if lit, ok := call.Args[0].(*ast.BasicLit); ok {
-					moduleName := strings.Trim(lit.Value, `"`)
-					dir := filepath.Base(filepath.Dir(pass.Fset.File(call.Pos()).Name()))
-					if moduleName != dir {
-						pass.Reportf(lit.Pos(), "module name %q should match directory name %q", moduleName, dir)
-					}
-				}
-			}
-		}
-	}
+	return nil
 }
 
 func findParentInit(node ast.Node) (*ast.FuncDecl, bool) {
@@ -182,24 +156,4 @@ func findParentInit(node ast.Node) (*ast.FuncDecl, bool) {
 		return true
 	})
 	return initFunc, initFunc != nil
-}
-
-func checkModuleNameMatchesPackage(pass *analysis.Pass, file *ast.File, pkgName string) {
-	ast.Inspect(file, func(n ast.Node) bool {
-		if call, ok := n.(*ast.CallExpr); ok {
-			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-				if x, ok := sel.X.(*ast.Ident); ok && x.Name == "fx" && sel.Sel.Name == "Module" {
-					if len(call.Args) > 0 {
-						if lit, ok := call.Args[0].(*ast.BasicLit); ok {
-							moduleName := strings.Trim(lit.Value, `"`)
-							if moduleName != pkgName {
-								pass.Reportf(lit.Pos(), "module name %q should match package name %q", moduleName, pkgName)
-							}
-						}
-					}
-				}
-			}
-		}
-		return true
-	})
 }
