@@ -105,7 +105,19 @@ issues:
     - path: pkg/analyzer/analyzer.go
       linters:
         - gochecknoglobals
-      text: "Analyzer is a global variable"
+      text: "(Analyzer|config) is a global variable"
+    - path: pkg/analyzer/analyzer.go
+      linters:
+        - gochecknoinits
+      text: "don't use `init` function"
+    - path: pkg/analyzer/analyzer.go
+      linters:
+        - godot
+      text: "Comment should end in a period"
+    - path: pkg/analyzer/analyzer.go
+      linters:
+        - nlreturn
+      text: "return with no blank line before"
 
 output:
   show-stats: true
