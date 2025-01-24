@@ -34,15 +34,6 @@ func (s *stringSliceFlag) Set(value string) error {
 	return nil
 }
 
-// defaultConfig holds the default analyzer configuration.
-var defaultConfig = Config{
-	ModulePaths: []string{
-		"internal/*/module.go",
-		"pkg/*/module.go",
-	},
-	StrictNaming: true,
-}
-
 // Analyzer is the fxlint analyzer.
 var Analyzer = &analysis.Analyzer{
 	Name: "fxlint",
@@ -69,7 +60,14 @@ func setupFlags() {
 }
 
 func init() {
-	config = defaultConfig
+	config = Config{
+		ModulePaths: []string{
+			"internal/*/module.go",
+			"pkg/*/module.go",
+		},
+		StrictNaming: true,
+	}
+
 	setupFlags()
 }
 
@@ -100,6 +98,10 @@ func checkModuleCall(pass *analysis.Pass, call *ast.CallExpr) {
 		return
 	}
 
+	checkModuleLocation(pass, call)
+}
+
+func checkModuleLocation(pass *analysis.Pass, call *ast.CallExpr) {
 	// Get file info
 	pos := call.Pos()
 	file := pass.Fset.File(pos)
@@ -124,7 +126,10 @@ func checkModuleCall(pass *analysis.Pass, call *ast.CallExpr) {
 		return
 	}
 
-	// Check module name matches
+	checkModuleName(pass, call, dir)
+}
+
+func checkModuleName(pass *analysis.Pass, call *ast.CallExpr, dir string) {
 	if len(call.Args) == 0 {
 		return
 	}
