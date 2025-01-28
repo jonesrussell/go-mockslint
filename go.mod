@@ -1,4 +1,4 @@
-module github.com/jonesrussell/go-fxlint
+module github.com/jonesrussell/go-mockslint
 
 go 1.23
 

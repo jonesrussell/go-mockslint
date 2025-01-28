@@ -36,7 +36,7 @@ func (s *stringSliceFlag) Set(value string) error {
 
 // Analyzer is the fxlint analyzer.
 var Analyzer = &analysis.Analyzer{
-	Name: "fxlint",
+	Name: "mockslint",
 	Doc:  "Enforces domain-driven module organization patterns in Go projects using uber/fx",
 	Run:  run,
 	Requires: []*analysis.Analyzer{

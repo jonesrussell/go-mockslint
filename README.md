@@ -1,11 +1,11 @@
-# go-fxlint
+# go-mockslint
 
 A custom golangci-lint analyzer that enforces domain-driven module organization patterns in Go projects using [uber/fx](https://github.com/uber-go/fx).
 
 ## Installation
 
 ```bash
-go install github.com/jonesrussell/go-fxlint/cmd/go-fxlint@latest
+go install github.com/jonesrussell/go-mockslint/cmd/go-mockslint@latest
 ```
 
 ## Features
@@ -25,10 +25,10 @@ The linter enforces the following rules:
 
 ```bash
 # Run on a package
-go-fxlint ./...
+go-mockslint ./...
 
 # Run with custom configuration
-go-fxlint -module-paths="internal/*/module.go,pkg/*/module.go" -strict-naming=true ./...
+go-mockslint -module-paths="internal/*/module.go,pkg/*/module.go" -strict-naming=true ./...
 ```
 
 ### With golangci-lint
@@ -38,10 +38,10 @@ Add to your `.golangci.yml`:
 ```yaml
 linters:
   enable:
-    - fxlint
+    - mockslint
 
 linters-settings:
-  fxlint:
+  mockslint:
     # Optional: Configure allowed module locations
     modulePaths:
       - internal/*/module.go

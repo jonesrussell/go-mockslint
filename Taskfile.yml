@@ -5,14 +5,14 @@ tasks:
     deps: [lint, test, vet]
 
   build:
-    desc: Build the go-fxlint binary
+    desc: Build the go-mockslint binary
     cmds:
-      - go build ./cmd/go-fxlint
+      - go build ./cmd/go-mockslint
 
   install:
-    desc: Install go-fxlint globally
+    desc: Install go-mockslint globally
     cmds:
-      - go install ./cmd/go-fxlint
+      - go install ./cmd/go-mockslint
 
   test:
     desc: Run tests with coverage
@@ -28,7 +28,7 @@ tasks:
     desc: Run go vet with our custom analyzer
     deps: [build]
     cmds:
-      - go vet -vettool=./go-fxlint ./...
+      - go vet -vettool=./go-mockslint ./...
 
   tidy:
     desc: Tidy and verify dependencies
@@ -43,5 +43,5 @@ tasks:
   clean:
     desc: Clean build artifacts
     cmds:
-      - rm -f go-fxlint
+      - rm -f go-mockslint
       - go clean -cache -testcache 
