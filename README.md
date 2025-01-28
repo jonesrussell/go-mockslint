@@ -1,6 +1,10 @@
 # go-mockslint
 
-A custom golangci-lint analyzer that enforces domain-driven module organization patterns in Go projects using [uber/fx](https://github.com/uber-go/fx).
+A custom golangci-lint analyzer that enforces mock organization patterns in Go projects. The linter ensures that:
+
+1. Mocks are only created in `test/mocks/` directory
+2. No mocks are allowed in `internal/` directories
+3. Proper mock naming conventions are followed
 
 ## Installation
 
@@ -12,12 +16,11 @@ go install github.com/jonesrussell/go-mockslint/cmd/go-mockslint@latest
 
 The linter enforces the following rules:
 
-1. Module files must be named `module.go`
-2. Module files must be in their respective domain packages (not in `internal/module/`)
-3. Module files cannot be directly in the `internal/` directory
-4. The fx.Module name should match its package name (e.g., package auth should have `fx.Module("auth", ...)`)
-5. `fx.Module` can only be used in `module.go` files
-6. Each domain package should have its own `module.go`
+1. Mock files must be in the `test/mocks/` directory
+2. No mock files allowed in `internal/` directories
+3. Mock files should follow naming convention: `mock_*.go`
+4. Each mock should be in its own file
+5. Mock interfaces should be properly documented
 
 ## Usage
 
@@ -28,7 +31,7 @@ The linter enforces the following rules:
 go-mockslint ./...
 
 # Run with custom configuration
-go-mockslint -module-paths="internal/*/module.go,pkg/*/module.go" -strict-naming=true ./...
+go-mockslint -mock-paths="test/mocks/*_test.go" -strict-naming=true ./...
 ```
 
 ### With golangci-lint
@@ -42,11 +45,10 @@ linters:
 
 linters-settings:
   mockslint:
-    # Optional: Configure allowed module locations
-    modulePaths:
-      - internal/*/module.go
-      - pkg/*/module.go
-    # Optional: Enforce strict module naming
+    # Configure allowed mock file locations
+    mockPaths:
+      - test/mocks/*.go
+    # Enforce strict mock naming
     strictNaming: true
 ```
 
@@ -60,54 +62,49 @@ golangci-lint run
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `modulePaths` | Glob patterns for allowed module file locations | `["internal/*/module.go", "pkg/*/module.go"]` |
-| `strictNaming` | Enforce that module names match their package names | `true` |
+| `mockPaths` | Glob patterns for allowed mock file locations | `["test/mocks/*.go"]` |
+| `strictNaming` | Enforce that mock files follow naming convention | `true` |
 
 ## Examples
 
-### Valid Module Organization
+### Valid Mock Organization
 
 ```go
-// internal/auth/module.go
-package auth
+// test/mocks/mock_authenticator.go
+package mocks
 
-import "go.uber.org/fx"
+import "github.com/stretchr/testify/mock"
 
-var Module = fx.Module("auth",
-    fx.Provide(
-        NewAuthenticator,
-    ),
-)
+type MockAuthenticator struct {
+    mock.Mock
+}
+
+func (m *MockAuthenticator) Authenticate(token string) bool {
+    args := m.Called(token)
+    return args.Bool(0)
+}
 ```
 
 ### Common Violations
 
 ```go
-// BAD: Module in wrong location
-// internal/module/auth.go
+// BAD: Mock in wrong location
+// internal/auth/mock_auth.go
 package auth
 
-var Module = fx.Module("auth", ...)
+type MockAuth struct {}
 
-// BAD: Module directly in internal
-// internal/module.go
-package internal
+// BAD: Mock not in test/mocks
+// pkg/auth/mocks/authenticator.go
+package mocks
 
-var Module = fx.Module("internal", ...)
+type MockAuthenticator struct {}
 
-// BAD: Wrong module name
-// internal/auth/module.go
-package auth
+// BAD: Wrong naming convention
+// test/mocks/auth_mock.go
+package mocks
 
-var Module = fx.Module("user", ...) // Should be "auth"
-
-// BAD: fx.Module in non-module file
-// internal/auth/service.go
-package auth
-
-func init() {
-    fx.Module("auth", ...) // Should be in module.go
-}
+type AuthMock struct {}
 ```
 
 ## Development
