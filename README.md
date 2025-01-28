@@ -16,11 +16,10 @@ go install github.com/jonesrussell/go-mockslint/cmd/go-mockslint@latest
 
 The linter enforces the following rules:
 
-1. Mock files must be in the `test/mocks/` directory
-2. No mock files allowed in `internal/` directories
-3. Mock files should follow naming convention: `mock_*.go`
+1. Mock types must be defined in `test/mocks/` directory
+2. No mock types allowed in `internal/` directories
+3. Mock types must start with "Mock" prefix
 4. Each mock should be in its own file
-5. Mock interfaces should be properly documented
 
 ## Usage
 
@@ -70,17 +69,17 @@ golangci-lint run
 ### Valid Mock Organization
 
 ```go
-// test/mocks/mock_authenticator.go
+// test/mocks/authenticator.go
 package mocks
 
 import "github.com/stretchr/testify/mock"
 
-type MockAuthenticator struct {
+type Authenticator struct {
     mock.Mock
 }
 
-func (m *MockAuthenticator) Authenticate(token string) bool {
-    args := m.Called(token)
+func (a *Authenticator) Authenticate(token string) bool {
+    args := a.Called(token)
     return args.Bool(0)
 }
 ```
@@ -89,7 +88,7 @@ func (m *MockAuthenticator) Authenticate(token string) bool {
 
 ```go
 // BAD: Mock in wrong location
-// internal/auth/mock_auth.go
+// internal/auth/authenticator.go
 package auth
 
 type MockAuth struct {}
@@ -99,12 +98,6 @@ type MockAuth struct {}
 package mocks
 
 type MockAuthenticator struct {}
-
-// BAD: Wrong naming convention
-// test/mocks/auth_mock.go
-package mocks
-
-type AuthMock struct {}
 ```
 
 ## Development
